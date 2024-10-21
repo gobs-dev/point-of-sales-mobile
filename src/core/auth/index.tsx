@@ -1,39 +1,63 @@
 import { create } from 'zustand';
 
+import { client } from '@/api';
+
 import { createSelectors } from '../utils';
 import type { TokenType } from './utils';
 import { getToken, removeToken, setToken } from './utils';
 
+type User  = {
+  id: string;
+  email: string;
+  activeStoreId: string | null;
+}
+
 interface AuthState {
   token: TokenType | null;
-  status: 'idle' | 'signOut' | 'signIn';
-  signIn: (data: TokenType) => void;
+  user: User| null;
+  status: 'idle' | 'loading' | 'authenticated' | 'unauthenticated';
+  signIn: (data: TokenType) => Promise<void>;
   signOut: () => void;
-  hydrate: () => void;
+  checkAuthStatus: () => Promise<void>;
 }
 
 const _useAuth = create<AuthState>((set, get) => ({
   status: 'idle',
   token: null,
-  signIn: (token) => {
+  user: null,
+  signIn: async (token) => {
     setToken(token);
-    set({ status: 'signIn', token });
+    set({ status: 'loading', token });
+    await get().checkAuthStatus();
   },
   signOut: () => {
     removeToken();
-    set({ status: 'signOut', token: null });
+    set({ status: 'unauthenticated', token: null, user: null });
   },
-  hydrate: () => {
+  checkAuthStatus: async () => {
+    set({ status: 'loading' });
     try {
-      const userToken = getToken();
-      if (userToken !== null) {
-        get().signIn(userToken);
-      } else {
+      const token = getToken();
+      if (!token) {
         get().signOut();
+        return;
       }
-    } catch (e) {
-      // catch error here
-      // Maybe sign_out user!
+      const response = await client.get< {
+        type: string;
+        message?: string;
+        data?:User;
+      }>('/auth/check');
+      console.log('Env.API_URL',response.data)
+      
+      if (response.data?.type === 'error' || !response?.data?.data) {
+        get().signOut();
+        return;
+      }
+
+      set({ status: 'authenticated', user: response.data.data });
+    } catch (error) {
+      console.error('Error checking auth status:', error);
+      get().signOut();
     }
   },
 }));
@@ -42,4 +66,4 @@ export const useAuth = createSelectors(_useAuth);
 
 export const signOut = () => _useAuth.getState().signOut();
 export const signIn = (token: TokenType) => _useAuth.getState().signIn(token);
-export const hydrateAuth = () => _useAuth.getState().hydrate();
+export const checkAuthStatus = () => _useAuth.getState().checkAuthStatus();
