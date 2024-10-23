@@ -39,9 +39,10 @@ export default function Login() {
       });
       router.replace('/');
     },
-    onError: () => {
+    onError: (err) => {
+      const errorMessage = (err.response?.data as {message?:string})?.message || 'Login failed';
       showMessage({
-        message: 'Login failed',
+        message: errorMessage,
         type: 'danger',
       });
     },
