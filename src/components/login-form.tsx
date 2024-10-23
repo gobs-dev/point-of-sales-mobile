@@ -38,26 +38,23 @@ export const LoginForm = ({ onSubmit = () => {} }: LoginFormProps) => {
     >
       <View className="flex-1 justify-center p-4">
         <Text testID="form-title" className="pb-6 text-center text-2xl">
-          Sign In
+          Masuk
         </Text>
 
         <ControlledInput
-          testID="email-input"
           control={control}
           name="email"
           label="Email"
         />
         <ControlledInput
-          testID="password-input"
           control={control}
           name="password"
-          label="Password"
+          label="Kata Sandi"
           placeholder="***"
           secureTextEntry={true}
         />
         <Button
-          testID="login-button"
-          label="Login"
+          label="Masuk"
           onPress={handleSubmit(onSubmit)}
         />
       </View>
