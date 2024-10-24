@@ -2,18 +2,18 @@
 import { FlashList } from "@shopify/flash-list";
 import { useInfiniteQuery } from "@tanstack/react-query";
 import React, { useMemo, useState } from "react";
-import { ActivityIndicator, useWindowDimensions, View } from "react-native"
+import { ActivityIndicator, useWindowDimensions } from "react-native"
+import { undefined } from "zod";
 
 import { client } from "@/api";
 import CartCard from "@/components/card/cart-card"
+import BottomNavigationCart from "@/components/cart/bottom-navigation-cart";
 import { useAuth } from "@/core";
+import { CART_PRODUCTS_KEY } from "@/core/constants/storage";
+import * as storage from "@/core/storage";
 import { Text } from "@/ui"
 
-const cartItems = [
-  { id: '1', title: "Product 1", description: "Description 1", price: 100000, imageUrl: "https://dummyimage.com/300" },
-  { id: '2', title: "Product 2", description: "Description 2", price: 200000, imageUrl: "https://dummyimage.com/300" },
-  // Add more items as needed
-];
+
 const limit = 100;
 
 export interface ProductDto {
@@ -38,16 +38,15 @@ export interface ProductListResponseDto {
 }
 
 
-const renderItem = ({ item }) => (
+const renderItem = ({ item ,onAddToCart}: {item:ProductDto;onAddToCart: (id:string) => void}) => (
   <CartCard
     description={item.description}
-    imageUrl={item.imageUrl}
-    onPress={() => {/* Handle press */}}
+    imageUrl={item.imageUrl||''}
+    onPress={() => onAddToCart(item.id)}
     price={item.price}
-    title={item.title}
+    title={item.name}
   />
 );
-
 
 const Cart = () => {
   const { width } = useWindowDimensions();
@@ -57,11 +56,9 @@ const Cart = () => {
       return 4; // Desktop: 4 columns
   },[width])
   const { user } = useAuth();
-  console.log('user',user?.activeStoreId)
   const [selectedProducts, setSelectedProducts] = useState<{
     [key: string]: number;
   }>({});
-  const [isCheckoutDialogOpen, setIsCheckoutDialogOpen] = useState(false);
 
   const { data, isLoading, isError, fetchNextPage, hasNextPage } =
     useInfiniteQuery<ProductListResponseDto>({
@@ -77,8 +74,6 @@ const Cart = () => {
       },
       initialPageParam: 1,
     });
-    console.log(
-      'data',data)
 
   const products = useMemo(() => {
     return data?.pages.flatMap((page) => page.data);
@@ -119,31 +114,25 @@ const Cart = () => {
         ...prev,
         [productId]: (prev[productId] || 0) + 1,
       };
-      window.localStorage.setItem(
+      storage.setItem(
         CART_PRODUCTS_KEY,
-        JSON.stringify(newSelectedProducts)
+        newSelectedProducts
       );
       return newSelectedProducts;
     });
   };
-
   const handleRemoveFromCart = (productId: string) => {
     setSelectedProducts((prev) => {
-      const currentQuantity = prev[productId] || 0;
-      const newQuantity = currentQuantity - 1;
+      // Create a new object to avoid mutating previous state
+      const newSelectedProducts = { ...prev };
+      
+      // Remove the product
+      delete newSelectedProducts[productId];
 
-      const newSelectedProducts = {
-        ...prev,
-        [productId]: newQuantity,
-      };
-
-      if (newQuantity === 0) {
-        delete newSelectedProducts[productId];
-      }
-
-      window.localStorage.setItem(
+      // Update storage and return new state
+      storage.setItem(
         CART_PRODUCTS_KEY,
-        JSON.stringify(newSelectedProducts)
+        newSelectedProducts
       );
       return newSelectedProducts;
     });
@@ -156,25 +145,34 @@ const Cart = () => {
         ...(quantity > 0 ? { [productId]: quantity } : {}),
       };
 
-      window.localStorage.setItem(
+      storage.setItem(
         CART_PRODUCTS_KEY,
-        JSON.stringify(newSelectedProducts)
+        newSelectedProducts
       );
       return newSelectedProducts;
     });
   };
+
   return (
-    <View className="flex-1">
-      <Text>Cart Content</Text>
+    <>
       <FlashList
-        data={cartItems}
-        renderItem={renderItem}
+        data={products}
+        renderItem={({item}) => renderItem({item, onAddToCart:handleAddToCart})}
         keyExtractor={(item) => item.id}
         numColumns={numColumns}
-        estimatedItemSize={200}
+        estimatedItemSize={100}
         className="flex-1"
       />
-    </View>
+      <BottomNavigationCart
+          selectedProducts={selectedProducts}
+          idProductMaps={idProductMaps}
+          onRemoveFromCart={handleRemoveFromCart}
+          onAddToCart={handleAddToCart}
+          onChangeQuantity={handleChangeQuantity}
+          totalPrice={totalPrice}
+          onPayment={() =>{}}
+      />
+    </>
   )
 }
 

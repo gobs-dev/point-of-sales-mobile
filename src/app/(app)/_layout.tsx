@@ -11,7 +11,6 @@ import {
 
 export default function TabLayout() {
   const status = useAuth.use.status();
-  console.log('status',status)
   const hideSplash = useCallback(async () => {
     await SplashScreen.hideAsync();
   }, []);
@@ -43,7 +42,6 @@ export default function TabLayout() {
           title: 'Style',
           headerShown: false,
           tabBarIcon: ({ color }) => <StyleIcon color={color} />,
-          tabBarTestID: 'style-tab',
         }}
       />
       <Tabs.Screen
@@ -52,7 +50,6 @@ export default function TabLayout() {
           title: 'Settings',
           headerShown: false,
           tabBarIcon: ({ color }) => <SettingsIcon color={color} />,
-          tabBarTestID: 'settings-tab',
         }}
       />
     </Tabs>
